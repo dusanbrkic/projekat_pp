@@ -4,11 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include "matrix.h"
-
-bool check_dimensions(const matrix& a, const matrix& b) {
-    if (a.cols != b.rows) return false;
-    return true;
-}
+#include <tbb/tick_count.h>
 
 int main()
 {
@@ -34,17 +30,43 @@ int main()
         return -1;
     }
 
-    output << "Serial:" << std::endl << m1.serial_multiply(m2);
+    tbb::tick_count start_time;
+    tbb::tick_count end_time;
 
-    std::cout << "Serial finished..." << std::endl;
+    start_time = tbb::tick_count::now();
+    m3 = serial_multiply(m1, m2);
+    end_time = tbb::tick_count::now();
+    output << "Serial:" << std::endl << m3 << std::endl;
 
-    output << "Parallel:" << std::endl << m1.parallel_multiply(m2) << std::endl;
+    std::cout << "Serial finished... Time took: " << (end_time - start_time).seconds() * 1000 << "ms" << std::endl;
 
-    std::cout << "Parallel finished..." << std::endl;
+    start_time = tbb::tick_count::now();
+    m3 = parallel_multiply(m1, m2);
+    end_time = tbb::tick_count::now();
+    output << "Parallel:" << std::endl << m3 << std::endl;
 
-    output << "TBB task:" << std::endl << m1.tbb_task_multiply(m2);
+    std::cout << "Parallel finished... Time took: " << (end_time - start_time).seconds() * 1000 << "ms" << std::endl;
 
-    std::cout << "TBB task finished..." << std::endl;
+    start_time = tbb::tick_count::now();
+    m3 = el_per_thread_multiply(m1, m2);
+    end_time = tbb::tick_count::now();
+    output << "TBB task: one element per thread:" << std::endl << m3 << std::endl;
+
+    std::cout << "TBB task: one element per thread finished... Time took: " << (end_time - start_time).seconds() * 1000 << "ms" << std::endl;
+
+    start_time = tbb::tick_count::now();
+    m3 = dimension_per_thread_multiply(m1, m2);
+    end_time = tbb::tick_count::now();
+    output << "TBB task: dimension per thread:" << std::endl << m3 << std::endl;
+
+    std::cout << "TBB task: dimension per thread finished... Time took: " << (end_time - start_time).seconds() * 1000 << "ms" << std::endl;
+
+    start_time = tbb::tick_count::now();
+    m3 = hyperthreading_multiply(m1, m2);
+    end_time = tbb::tick_count::now();
+    output << "TBB task: hyperthreading:" << std::endl << m3 << std::endl;
+
+    std::cout << "TBB task: hyperthreading finished... Time took: " << (end_time - start_time).seconds() * 1000 << "ms" << std::endl;
 
     output.close();
 

@@ -1,2 +1,4 @@
 C:\Users\Dusan Brkic\Documents\GitHub\projekat_pp\projekat\Debug\projekat.exe
 C:\Users\Dusan Brkic\Documents\GitHub\projekat_pp\projekat\Debug\projekat.pdb
+C:\Users\Dusan Brkic\Documents\GitHub\projekat_pp\projekat\Debug\projekat.vcxproj.CopyComplete
+C:\Users\Dusan Brkic\Documents\GitHub\projekat_pp\projekat\Debug\tbb_debug.dll
