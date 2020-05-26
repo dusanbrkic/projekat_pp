@@ -1,7 +1,7 @@
 #include "matrix.h"
+#define N 8
 
-matrix serial_multiply(const matrix& first, const matrix& second) {
-    matrix result(first.rows, second.cols);
+void serial_multiply(const matrix& first, const matrix& second, matrix& result) {
     for (int i = 0; i < first.rows; i++) {
         for (int j = 0; j < second.cols; j++) {
             for (int k = 0; k < first.cols; k++) {
@@ -9,11 +9,9 @@ matrix serial_multiply(const matrix& first, const matrix& second) {
             }
         }
     }
-    return result;
 }
 
-matrix parallel_multiply(const matrix& first, const matrix& second){
-    matrix result(first.rows, second.cols);
+void parallel_multiply(const matrix& first, const matrix& second, matrix& result){
     tbb::parallel_for(tbb::blocked_range2d<int>(0, first.rows, 0, second.cols), [&](const tbb::blocked_range2d<int>& br) {
         for (int i = br.rows().begin(), i_end = br.rows().end(); i < i_end; i++) {
             for (int j = br.cols().begin(), j_end = br.cols().end(); j < j_end; j++) {
@@ -23,12 +21,9 @@ matrix parallel_multiply(const matrix& first, const matrix& second){
             }
         }
     });
-
-    return result;
 }
 
-matrix el_per_thread_multiply(const matrix& first, const matrix& second){
-    matrix result(first.rows, second.cols);
+void el_per_thread_multiply(const matrix& first, const matrix& second, matrix& result){
     tbb::task_list tl;
     matrix_element_task* et = (matrix_element_task*) new (tbb::task::allocate_root()) tbb::empty_task;
     et->set_ref_count(first.rows * second.cols + 1);
@@ -42,12 +37,9 @@ matrix el_per_thread_multiply(const matrix& first, const matrix& second){
     et->spawn_and_wait_for_all(tl);
     et->execute();
     et->destroy(*et);
-
-    return result;
 }
 
-matrix dimension_per_thread_multiply(const matrix& first, const matrix& second){
-    matrix result(first.rows, second.cols);
+void dimension_per_thread_multiply(const matrix& first, const matrix& second, matrix& result){
     int dimension;
     tbb::task_list tl;
     matrix_dimension_task* et = (matrix_dimension_task*) new (tbb::task::allocate_root()) tbb::empty_task;
@@ -63,17 +55,33 @@ matrix dimension_per_thread_multiply(const matrix& first, const matrix& second){
     et->spawn_and_wait_for_all(tl);
     et->execute();
     et->destroy(*et);
-
-    return result;
 }
 
-matrix hyperthreading_multiply(const matrix& first, const matrix& second){
-    return matrix();
+void hyperthreading_multiply(const matrix& first, const matrix& second, matrix& result){
+    tbb::task_list tl;
+    hyperthread_task* et = (hyperthread_task*) new (tbb::task::allocate_root()) tbb::empty_task;
+    et->set_ref_count(N + 1);
+    for (int i = 0; i < N; i++) {
+        hyperthread_task* m = new (tbb::task::allocate_root()) hyperthread_task(i, first, second, result);
+        m->tasks.push_back(et);
+        tl.push_back(*m);
+    }
+
+    et->spawn_and_wait_for_all(tl);
+    et->execute();
+    et->destroy(*et);
 }
 
 matrix::matrix() : elements(), rows(0), cols(0) {};
-matrix::matrix(const matrix& m) : elements(m.elements), rows(m.rows), cols(m.cols) {};
-matrix::matrix(int _rows, int _cols) : rows(_rows), cols(_cols), elements(_rows, std::vector<int>(_cols)) {};
+matrix::matrix(const matrix& m) : elements(m.elements), rows(m.rows), cols(m.cols) {}
+matrix::matrix(int _rows, int _cols) : rows(_rows), cols(_cols), elements(_rows, std::vector<int>(_cols)) {}
+
+int matrix::getRows() { return rows; }
+int matrix::getCols() { return cols; }
+
+void matrix::reset(){
+    for (std::vector<int> el : elements) std::fill(el.begin(), el.end(), 0);
+}
 
 std::istream& operator>>(std::istream& input, matrix& m){
     input >> m.rows;
@@ -119,8 +127,7 @@ tbb::task* matrix_element_task::execute(){
 matrix_dimension_task::matrix_dimension_task(int d_, const matrix& m1_, const matrix& m2_, matrix& result_)
 : d(d_), m1(m1_), m2(m2_), result(result_) {}
 
-tbb::task* matrix_dimension_task::execute()
-{
+tbb::task* matrix_dimension_task::execute(){
     __TBB_ASSERT(ref_count() == 0, NULL);
     //One dimension is passed through the constructor (d), the row/column (d) represents is determined by the flag
     //flag = 1 -> this task fills the (d)-th row
@@ -135,6 +142,24 @@ tbb::task* matrix_dimension_task::execute()
             for (int j = 0; j < m1.cols; j++)
                 result.elements.at(i).at(d) += m1.elements.at(i).at(j) * m2.elements.at(j).at(d);
     for (matrix_dimension_task* task : tasks)
+        if (task->decrement_ref_count() == 0) spawn(*task);
+    return NULL;
+}
+
+hyperthread_task::hyperthread_task(int hash_, const matrix& m1_, const matrix& m2_, matrix& result_) 
+: hash(hash_), m1(m1_), m2(m2_), result(result_) {}
+
+tbb::task* hyperthread_task::execute() {
+    __TBB_ASSERT(ref_count() == 0, NULL);
+    for (int i = 0; i < m1.rows; i++) {
+        for (int j = 0; j < m2.cols; j++) {
+            if ((i * m2.cols + j) % N == hash)
+                for (int k = 0; k < m1.cols; k++) {
+                    result.elements.at(i).at(j) += m1.elements.at(i).at(k) * m2.elements.at(k).at(j);
+                }
+        }
+    }
+    for (hyperthread_task* task : tasks)
         if (task->decrement_ref_count() == 0) spawn(*task);
     return NULL;
 }
