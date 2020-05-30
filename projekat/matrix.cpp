@@ -1,4 +1,4 @@
-#include "matrix.h"
+﻿#include "matrix.h"
 #define N 8
 
 void serial_multiply(const matrix& first, const matrix& second, matrix& result) {
@@ -80,7 +80,9 @@ int matrix::getRows() { return rows; }
 int matrix::getCols() { return cols; }
 
 void matrix::reset(){
-    for (std::vector<int> el : elements) std::fill(el.begin(), el.end(), 0);
+    for (int i = 0; i < rows; i++)
+        for (int j = 0; j < cols; j++)
+            elements.at(i).at(j) = 0;
 }
 
 std::istream& operator>>(std::istream& input, matrix& m){
@@ -151,12 +153,11 @@ hyperthread_task::hyperthread_task(int hash_, const matrix& m1_, const matrix& m
 
 tbb::task* hyperthread_task::execute() {
     __TBB_ASSERT(ref_count() == 0, NULL);
-    for (int i = 0; i < m1.rows; i++) {
-        for (int j = 0; j < m2.cols; j++) {
-            if ((i * m2.cols + j) % N == hash)
-                for (int k = 0; k < m1.cols; k++) {
-                    result.elements.at(i).at(j) += m1.elements.at(i).at(k) * m2.elements.at(k).at(j);
-                }
+    for (int i = hash; i < m1.rows * m2.cols; i += N) {
+        for (int k = 0; k < m1.cols; k++) {
+            // formula is row * no_of_columns + column --> (i)-th element in the result matrix (from right to left)
+            // column --> (i) % no_of_columns | row --> (i) / no_of_columns
+            result.elements.at(i/m2.cols).at(i%m2.cols) += m1.elements.at(i/m2.cols).at(k) * m2.elements.at(k).at(i%m2.cols);
         }
     }
     for (hyperthread_task* task : tasks)
