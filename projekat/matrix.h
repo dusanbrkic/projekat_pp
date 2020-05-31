@@ -19,23 +19,48 @@ public:
 
 	int getRows();
 	int getCols();
-	void reset(); //sets all elements to 0
+	void reset(); // resets all matrix elements to 0
 
+
+	// computes the result matrix using single thread
 	friend void serial_multiply(const matrix&, const matrix&, matrix&);
+
+	// computes the result matrix using parallel_for
 	friend void parallel_multiply(const matrix&, const matrix&, matrix&);
+
+	// that spawns one task per element of the result matrix
 	friend void el_per_thread_multiply(const matrix&, const matrix&, matrix&);
+
+	// spawns one task per row/column (dimension) of the result matrix
 	friend void dimension_per_thread_multiply(const matrix&, const matrix&, matrix&);
+
+	// calculates the result using N tasks
 	friend void hyperthreading_multiply(const matrix&, const matrix&, matrix&);
 
 	friend std::istream& operator>>(std::istream& input, matrix& m);
 	friend std::ostream& operator<<(std::ostream& output, const matrix& m);
+
+	// checks if dimensions of matrixes are valid for multiplication
 	friend bool check_dimensions(const matrix&, const matrix&);
 
+	friend class parallel_for_functor;
 	friend class matrix_element_task;
 	friend class matrix_dimension_task;
 	friend class hyperthread_task;
 };
 
+// Functor that contains the body of the parallel_for method
+class parallel_for_functor {
+private:
+	const matrix& m1, m2;
+	matrix& m3;
+public:
+	parallel_for_functor(const matrix&, const matrix&, matrix&);
+	void operator()(const tbb::blocked_range2d<int>&) const;
+		
+};
+
+// used to create tasks that calculate one element per thread
 class matrix_element_task : public tbb::task {
 private:
 	int row, col;
@@ -47,6 +72,7 @@ public:
 	tbb::task* execute();
 };
 
+// used to create tasks that calculate one entire row/col per thread
 class matrix_dimension_task : public tbb::task {
 private:
 	int d;
@@ -58,9 +84,10 @@ public:
 	tbb::task* execute();
 };
 
+// used to create tasks that calculate (n_of_all_ellements)/(N) elements per thread
 class hyperthread_task : public tbb::task {
 private:
-	int hash; // An integer in range [0, N-1] that decides which elements of the result matrix this task will compute
+	int hash; // in range [0, N-1] that decides which elements of the result matrix this task will compute
 	const matrix& m1, m2;
 	matrix& result;
 public:

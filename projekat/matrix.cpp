@@ -1,10 +1,11 @@
 ﻿#include "matrix.h"
-#define N 8
+#define N 4 // Number of logical cores
 
 void serial_multiply(const matrix& first, const matrix& second, matrix& result) {
     for (int i = 0; i < first.rows; i++) {
         for (int j = 0; j < second.cols; j++) {
             for (int k = 0; k < first.cols; k++) {
+				// direct algorhytm
                 result.elements.at(i).at(j) += first.elements.at(i).at(k) * second.elements.at(k).at(j);
             }
         }
@@ -12,15 +13,7 @@ void serial_multiply(const matrix& first, const matrix& second, matrix& result) 
 }
 
 void parallel_multiply(const matrix& first, const matrix& second, matrix& result){
-    tbb::parallel_for(tbb::blocked_range2d<int>(0, first.rows, 0, second.cols), [&](const tbb::blocked_range2d<int>& br) {
-        for (int i = br.rows().begin(), i_end = br.rows().end(); i < i_end; i++) {
-            for (int j = br.cols().begin(), j_end = br.cols().end(); j < j_end; j++) {
-                for (int k = 0; k < first.cols; k++) {
-                    result.elements.at(i).at(j) += first.elements.at(i).at(k) * second.elements.at(k).at(j);
-                }
-            }
-        }
-    });
+    tbb::parallel_for(tbb::blocked_range2d<int>(0, first.rows, 0, second.cols), parallel_for_functor(first, second, result));
 }
 
 void el_per_thread_multiply(const matrix& first, const matrix& second, matrix& result){
@@ -114,6 +107,19 @@ bool check_dimensions(const matrix& a, const matrix& b) {
     return true;
 }
 
+parallel_for_functor::parallel_for_functor(const matrix& m1_, const matrix& m2_, matrix& m3_) : m1(m1_), m2(m2_), m3(m3_) {}
+
+void parallel_for_functor::operator()(const tbb::blocked_range2d<int>& br) const {
+	for (int i = br.rows().begin(), i_end = br.rows().end(); i < i_end; i++) {
+		for (int j = br.cols().begin(), j_end = br.cols().end(); j < j_end; j++) {
+			for (int k = 0; k < m1.cols; k++) {
+				m3.elements.at(i).at(j) += m1.elements.at(i).at(k) * m2.elements.at(k).at(j);
+
+			}
+		}
+	}
+}
+
 matrix_element_task::matrix_element_task(int row_, int col_, const matrix& m1_, const matrix& m2_, matrix& result_) 
     : row(row_), col(col_), m1(m1_), m2(m2_), result(result_) {}
 
@@ -131,9 +137,10 @@ matrix_dimension_task::matrix_dimension_task(int d_, const matrix& m1_, const ma
 
 tbb::task* matrix_dimension_task::execute(){
     __TBB_ASSERT(ref_count() == 0, NULL);
-    //One dimension is passed through the constructor (d), the row/column (d) represents is determined by the flag
-    //flag = 1 -> this task fills the (d)-th row
-    //flag = 2 -> this task fills the (d)-th column
+    // One dimension is passed through the constructor (d), the (flag) determines if (d) represents (d)-th row or (d)-th column
+    // flag = 1 -> this task fills the (d)-th row
+    // flag = 2 -> this task fills the (d)-th column
+	// if there are more rows (d) will represent rows, or else (d) represents cols
     int flag = 1 ? 2 : m1.rows > m2.cols;
     if (flag == 1)
         for (int i = 0; i < m2.cols; i++)
@@ -155,7 +162,7 @@ tbb::task* hyperthread_task::execute() {
     __TBB_ASSERT(ref_count() == 0, NULL);
     for (int i = hash; i < m1.rows * m2.cols; i += N) {
         for (int k = 0; k < m1.cols; k++) {
-            // formula is row * no_of_columns + column --> (i)-th element in the result matrix (from right to left)
+            // formula is row * no_of_columns + column --> (i)-th element in the result matrix (from left to right)
             // column --> (i) % no_of_columns | row --> (i) / no_of_columns
             result.elements.at(i/m2.cols).at(i%m2.cols) += m1.elements.at(i/m2.cols).at(k) * m2.elements.at(k).at(i%m2.cols);
         }
