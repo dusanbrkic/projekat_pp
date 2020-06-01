@@ -1,3 +1,6 @@
 ﻿  projekat.cpp
   TBB Warning: tbb/task_scheduler_init.h is deprecated. For details, please see Deprecated Features appendix in the TBB reference manual.
+  test.cpp
+  TBB Warning: tbb/task_scheduler_init.h is deprecated. For details, please see Deprecated Features appendix in the TBB reference manual.
+  Generating Code...
   projekat.vcxproj -> C:\Users\Dusan\Documents\GitHub\projekat_pp\projekat\Debug\projekat.exe

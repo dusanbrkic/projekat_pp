@@ -1,11 +1,12 @@
 #include "test.h"
+#define T 10 // Number of test cases
 
 void test1(const matrix& m1, const matrix& m2, matrix& m3) {
 	tbb::tick_count start_time;
 	tbb::tick_count end_time;
 	double serial_time, parallel_time, acc, avg_acc1(0), avg_acc2(0), avg_acc3(0), avg_acc4(0);
 
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < T; i++) {
 
 		start_time = tbb::tick_count::now();
 		serial_multiply(m1, m2, m3);
@@ -59,10 +60,10 @@ void test1(const matrix& m1, const matrix& m2, matrix& m3) {
 		avg_acc4 += acc;
 		m3.reset();
 	}
-	std::cout << "Average Acceleration par_for: " << avg_acc1 / 10 << std::endl;
-	std::cout << "Average Acceleration el_per_thread: " << avg_acc2 / 10 << std::endl;
-	std::cout << "Average Acceleration dim_per_thread: " << avg_acc3 / 10 << std::endl;
-	std::cout << "Average Acceleration hyperthreading: " << avg_acc4 / 10 << std::endl;
+	std::cout << "Average Acceleration par_for: " << avg_acc1 / T << std::endl;
+	std::cout << "Average Acceleration el_per_thread: " << avg_acc2 / T << std::endl;
+	std::cout << "Average Acceleration dim_per_thread: " << avg_acc3 / T << std::endl;
+	std::cout << "Average Acceleration hyperthreading: " << avg_acc4 / T << std::endl;
 	std::cout << std::endl;
 	std::cout << "Testing finished." << std::endl;
 	std::cout << std::endl;

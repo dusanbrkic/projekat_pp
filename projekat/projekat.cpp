@@ -33,7 +33,7 @@ int main(int argc, char* argv[])
 
 	matrix m3(m1.getRows(), m2.getCols());
 
-	//test1(m1, m2, m3);
+	test1(m1, m2, m3);
 
 	tbb::tick_count start_time;
 	tbb::tick_count end_time;

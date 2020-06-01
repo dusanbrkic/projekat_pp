@@ -84,7 +84,7 @@ public:
 	tbb::task* execute();
 };
 
-// used to create tasks that calculate (n_of_all_ellements)/(N) elements per thread
+// used to create tasks that calculate 1/(N) elements per thread
 class hyperthread_task : public tbb::task {
 private:
 	int hash; // in range [0, N-1] that decides which elements of the result matrix this task will compute
